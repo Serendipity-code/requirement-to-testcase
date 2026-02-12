@@ -4,3 +4,5 @@ pandas==2.2.2                # 用于输出表格
 openpyxl==3.1.2              # Excel 文件支持
 python-dotenv==1.0.1         # 加载 .env 配置
 langchain-experimental==0.3.4
+mcp==0.9.0                   # MCP 协议支持
+langchain-mcp==0.1.0         # LangChain MCP 集成

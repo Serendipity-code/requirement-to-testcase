@@ -1,58 +1,78 @@
+"""
+基于 MCP 和 Skills 架构的智能测试用例生成器
+"""
 from dotenv import load_dotenv
-from langchain.chains.llm import LLMChain
-from langchain_community.chat_models import ChatOpenAI
-from langchain_core.prompts import PromptTemplate
-from agents.export_excel_agent import export_test_cases_with_agent
-from utils import load_prompt_template
+from skills.skill_manager import SkillManager
+from skills.test_point_extraction_skill import TestPointExtractionSkill
+from skills.test_case_generation_skill import TestCaseGenerationSkill
+from skills.excel_export_skill import ExcelExportSkill
+from mcp_server.client import MCPClient
 
+# 加载环境变量
 load_dotenv()
 
 
-def generate_test_cases_from_points(test_points: str, requirement: str) -> str:
-    prompt_path = "prompts/generate_test_cases.md"
-    prompt_text = load_prompt_template(prompt_path)
-
-    prompt_template = PromptTemplate(
-        input_variables=["requirement", "test_points"],
-        template=prompt_text,
-    )
-
-    llm = ChatOpenAI(temperature=0.2, model="gpt-3.5-turbo")
-    testcase_chain = LLMChain(llm=llm, prompt=prompt_template)
-
-    response = testcase_chain.run({
-        "requirement": requirement,
-        "test_points": test_points
-    })
-
-    return response  # 返回的是 JSON 字符串
-
-
 def main():
-    # 加载外部 Prompt 文件
-    prompt_path = "prompts/generate_test_points.md"
-    prompt_text = load_prompt_template(prompt_path)
-
-    # 解析 Prompt 文件
-    test_point_prompt_template = PromptTemplate(
-        input_variables=["requirement"],
-        template=prompt_text,
-    )
-
-    llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
-    parser_chain = LLMChain(llm=llm, prompt=test_point_prompt_template)
-
-    # 示例调用
+    """主程序入口"""
+    print("=" * 60)
+    print("🚀 基于 MCP 和 Skills 架构的智能测试用例生成器")
+    print("=" * 60)
+    
+    # 初始化 MCP 客户端
+    print("\n📡 初始化 MCP 客户端...")
+    mcp_client = MCPClient(config_path="mcp_config.json")
+    print("✅ MCP 客户端初始化成功")
+    
+    # 创建 Skill Manager
+    print("\n🎯 创建 Skill Manager...")
+    skill_manager = SkillManager(mcp_client)
+    
+    # 注册 Skills
+    print("\n📦 注册 Skills...")
+    skill_manager.register_skill(TestPointExtractionSkill())
+    skill_manager.register_skill(TestCaseGenerationSkill())
+    skill_manager.register_skill(ExcelExportSkill())
+    
+    # 定义工作流
+    workflow = [
+        "test_point_extraction",
+        "test_case_generation",
+        "excel_export"
+    ]
+    
+    # 准备初始上下文
     requirement = "用户可以使用邮箱和密码登录系统，成功后跳转到首页。若邮箱或密码错误，应显示错误信息。"
-    test_points = parser_chain.run(requirement)
-    print(test_points)
-
-    # Step 2: 根据测试点生成测试用例
-    test_case_json = generate_test_cases_from_points(test_points, requirement)
-    print("📄 生成的测试用例 JSON：\n", test_case_json)
-
-    # Step 3: 导出为 Excel 文件
-    export_test_cases_with_agent(test_case_json, filename="test_cases.xlsx")
+    context = {
+        "requirement": requirement,
+        "filename": "test_cases.xlsx"
+    }
+    
+    print(f"\n📝 需求描述:\n{requirement}\n")
+    
+    try:
+        # 执行工作流
+        results = skill_manager.execute_workflow(workflow, context)
+        
+        # 输出结果摘要
+        print("=" * 60)
+        print("✅ 工作流执行成功！")
+        print("=" * 60)
+        print(f"\n📊 结果摘要:")
+        for skill_name, result in results.items():
+            if result.get("success"):
+                print(f"  ✅ {skill_name}: 成功")
+            else:
+                print(f"  ❌ {skill_name}: 失败")
+        
+        if results.get("excel_export", {}).get("filename"):
+            print(f"\n📁 生成的 Excel 文件: {results['excel_export']['filename']}")
+        
+    except Exception as e:
+        print(f"\n❌ 工作流执行失败: {str(e)}")
+        raise
+    finally:
+        # 关闭 MCP 客户端
+        mcp_client.close()
 
 
 if __name__ == "__main__":
