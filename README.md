@@ -102,8 +102,7 @@ pip install -r requirements.txt
 - `openpyxl==3.1.2` - Excel 文件支持
 - `python-dotenv==1.0.1` - 环境变量管理
 - `langchain-experimental==0.3.4` - LangChain 实验性功能
-- `mcp==0.9.0` - MCP 协议支持
-- `langchain-mcp==0.1.0` - LangChain MCP 集成
+- `mcp>=1.0.0` - MCP 协议支持
 
 #### 2.4 配置 API Key
 
