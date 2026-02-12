@@ -1,38 +1,64 @@
-# 基于 LLM Agent 的智能测试用例生成器
+# 基于 MCP 和 Skills 架构的智能测试用例生成器
 
 ## 📖 项目简介
 
-本项目是一个基于大语言模型（LLM）和 Agent 技术的智能测试用例生成系统。它能够自动完成从需求分析到测试用例生成，再到 Excel 文件导出的全流程自动化，极大地提升测试工程师的工作效率。
+本项目是一个基于大语言模型（LLM）、**MCP (Model Context Protocol)** 和 **Skills** 架构的智能测试用例生成系统。它能够自动完成从需求分析到测试用例生成，再到 Excel 文件导出的全流程自动化，极大地提升测试工程师的工作效率。
 
 ### 🎯 核心功能
 
 随着 AI 和大模型（LLM）技术的成熟和普及，测试工程师可以利用 AI 生成和优化测试用例，提高测试覆盖率，减少测试设计的重复性工作。本项目实现了以下三个核心流程：
 
 1. **需求分析 → 测试点提取**  
-   Agent 通过调用大语言模型（如 GPT-3.5）解析需求语义，自动提取出可测试的功能点、边界条件、异常路径等。
+   通过 TestPointExtractionSkill 调用大语言模型（如 GPT-3.5）解析需求语义，自动提取出可测试的功能点、边界条件、异常路径等。
 
 2. **测试点 → 结构化测试用例**  
-   结合原始需求与提取的测试点，生成完整的结构化测试用例，包含标题、前置条件、测试步骤、预期结果等字段。
+   结合原始需求与提取的测试点，TestCaseGenerationSkill 生成完整的结构化测试用例，包含标题、前置条件、测试步骤、预期结果等字段。
 
 3. **测试用例 → Excel 文件导出**  
-   使用 Python Agent 自动调用 pandas 工具，将 JSON 格式的测试用例导出为 Excel 文件，便于后续导入测试管理平台。
+   ExcelExportSkill 通过 MCP 的 ExcelExporter 工具，将 JSON 格式的测试用例导出为格式化的 Excel 文件，便于后续导入测试管理平台。
+
+### ⚡ 新架构优势
+
+- ✅ **模块化设计**：基于 Skills 架构，每个功能独立封装
+- ✅ **标准化工具**：MCP 协议统一工具调用接口
+- ✅ **灵活编排**：通过 SkillManager 动态编排工作流
+- ✅ **易于扩展**：添加新 Skill 或 MCP 工具即可扩展功能
+- ✅ **安全可靠**：移除 PythonREPLTool，使用专用的 MCP 工具
+- ✅ **可测试性**：各组件可独立测试和验证
 
 ## 🏗️ 项目结构
 
 ```
 requirement-to-testcase/
 │
-├── main.py                         # 项目主入口，串联整个流程
-├── agents/
-│   └── export_excel_agent.py       # Excel 导出 Agent
-├── prompts/
-│   ├── generate_test_points.md     # 测试点提取 Prompt 模板
-│   ├── generate_test_cases.md      # 测试用例生成 Prompt 模板
-│   └── export_to_excel.md          # Excel 导出 Prompt 模板
-├── utils.py                        # 工具函数（Prompt 加载）
-├── requirements.txt                # 项目依赖
-├── .env                            # 环境变量配置（需自行创建）
-└── README.md                       # 项目说明文档
+├── main.py                          # 主程序入口（基于 Skills 工作流）
+├── mcp_server/                      # MCP 服务器和工具
+│   ├── __init__.py
+│   ├── server.py                    # MCP 服务器实现
+│   ├── client.py                    # MCP 客户端
+│   └── tools/                       # MCP 工具实现
+│       ├── __init__.py
+│       ├── file_operations.py       # 文件读写工具
+│       ├── excel_exporter.py        # Excel 导出工具
+│       └── testcase_validator.py   # 测试用例验证工具
+├── skills/                          # Skills 模块
+│   ├── __init__.py
+│   ├── base_skill.py                # Skills 基类
+│   ├── skill_manager.py             # Skill 管理器
+│   ├── test_point_extraction_skill.py      # 测试点提取
+│   ├── test_case_generation_skill.py       # 测试用例生成
+│   └── excel_export_skill.py               # Excel 导出
+├── prompts/                         # Prompt 模板
+│   ├── generate_test_points.md      # 测试点提取 Prompt
+│   ├── generate_test_cases.md       # 测试用例生成 Prompt
+│   └── export_to_excel.md           # Excel 导出 Prompt（已废弃）
+├── docs/
+│   └── ARCHITECTURE.md              # 架构设计文档
+├── utils.py                         # 工具函数
+├── requirements.txt                 # 项目依赖
+├── mcp_config.json                  # MCP 配置文件
+├── .env                             # 环境变量配置（需自行创建）
+└── README.md                        # 项目说明文档
 ```
 
 ## 🚀 快速开始
@@ -76,6 +102,7 @@ pip install -r requirements.txt
 - `openpyxl==3.1.2` - Excel 文件支持
 - `python-dotenv==1.0.1` - 环境变量管理
 - `langchain-experimental==0.3.4` - LangChain 实验性功能
+- `mcp>=1.0.0` - MCP 协议支持
 
 #### 2.4 配置 API Key
 
@@ -164,26 +191,187 @@ requirement = """
 
 #### Step 3: 导出 Excel
 
-使用 ReAct Agent 自动调用 Python REPL 工具，执行 pandas 代码将 JSON 转换为 Excel 文件。
+ExcelExportSkill 通过 MCP 的 ExcelExporter 工具将 JSON 转换为 Excel 文件。
 
-Agent 会自动：
-1. 识别任务需求
-2. 选择合适的工具（Python REPL）
-3. 编写并执行 pandas 代码
-4. 生成 `test_cases.xlsx` 文件
+工具会自动：
+1. 解析 JSON 格式的测试用例
+2. 转换为 pandas DataFrame
+3. 美化表格样式（标题加粗、颜色、边框）
+4. 自动调整列宽
+5. 生成 `test_cases.xlsx` 文件
+
+## 🔧 MCP 架构说明
+
+### 什么是 MCP？
+
+MCP (Model Context Protocol) 是一个标准化的工具调用协议，用于在 AI 应用中封装和调用各种工具。
+
+### MCP 工具
+
+本项目实现了三个 MCP 工具：
+
+#### 1. FileOperations
+- **功能**：文件读写操作
+- **方法**：
+  - `read_file(path)`: 读取文件内容
+  - `write_file(path, content)`: 写入文件内容
+
+#### 2. ExcelExporter
+- **功能**：将 JSON 数据导出为格式化的 Excel 文件
+- **特性**：
+  - 自动解析 JSON 格式
+  - 支持列宽自动调整
+  - 美化表格样式（标题颜色、边框、对齐）
+  - 处理复杂字段（如 steps 列表）
+
+#### 3. TestCaseValidator
+- **功能**：验证测试用例格式和完整性
+- **检查项**：
+  - 必填字段：title, steps, expected_result
+  - 可选字段：description, precondition, actual_result, pass_fail
+  - 数据类型验证
+
+### MCP 配置
+
+MCP 配置文件 `mcp_config.json` 定义了服务器和工具：
+
+```json
+{
+  "mcpServers": {
+    "testcase-tools": {
+      "command": "python",
+      "args": ["mcp_server/server.py"],
+      "tools": [
+        "file_operations",
+        "excel_exporter",
+        "testcase_validator"
+      ]
+    }
+  }
+}
+```
+
+## 🎯 Skills 架构说明
+
+### 什么是 Skills？
+
+Skills 是业务逻辑的封装单元，每个 Skill 负责一个特定的任务。所有 Skills 继承自 `BaseSkill` 抽象基类。
+
+### 核心 Skills
+
+#### 1. TestPointExtractionSkill
+- **功能**：从需求描述中提取测试点
+- **输入**：需求描述文本
+- **输出**：测试点列表
+- **实现**：使用 LangChain + GPT-3.5 + Prompt 模板
+
+#### 2. TestCaseGenerationSkill
+- **功能**：根据测试点生成结构化测试用例
+- **输入**：需求描述 + 测试点列表
+- **输出**：JSON 格式的测试用例
+- **实现**：使用 LangChain + GPT-3.5 + Prompt 模板
+- **可选**：自动调用 TestCaseValidator 验证输出
+
+#### 3. ExcelExportSkill
+- **功能**：将测试用例导出为 Excel
+- **输入**：测试用例 JSON
+- **输出**：Excel 文件路径
+- **实现**：调用 MCP 的 ExcelExporter 工具
+
+### SkillManager
+
+SkillManager 负责管理和编排 Skills：
+
+```python
+# 创建 Skill Manager
+skill_manager = SkillManager(mcp_client)
+
+# 注册 Skills
+skill_manager.register_skill(TestPointExtractionSkill())
+skill_manager.register_skill(TestCaseGenerationSkill())
+skill_manager.register_skill(ExcelExportSkill())
+
+# 定义工作流
+workflow = [
+    "test_point_extraction",
+    "test_case_generation",
+    "excel_export"
+]
+
+# 执行工作流
+results = skill_manager.execute_workflow(workflow, context)
+```
+
+## 🔄 工作流编排
+
+### 标准工作流
+
+```
+需求描述
+    ↓
+TestPointExtractionSkill → 测试点列表
+    ↓
+TestCaseGenerationSkill → 测试用例 JSON
+    ↓
+ExcelExportSkill → Excel 文件
+```
+
+### 自定义工作流
+
+可以通过修改 `workflow` 列表来自定义执行流程：
+
+```python
+# 只提取测试点
+workflow = ["test_point_extraction"]
+
+# 跳过 Excel 导出
+workflow = ["test_point_extraction", "test_case_generation"]
+
+# 添加自定义 Skill
+workflow = [
+    "test_point_extraction",
+    "test_case_generation",
+    "my_custom_skill",  # 自定义
+    "excel_export"
+]
+```
+
+### 上下文传递
+
+工作流中的 Skills 通过 `context` 字典共享数据：
+
+- 初始上下文包含输入参数（如 requirement, filename）
+- 每个 Skill 的输出会自动合并到上下文
+- 后续 Skill 可以使用前面 Skill 的输出
+
+## 🔧 扩展指南
+
+### 添加新的 MCP 工具
+
+1. 在 `mcp_server/tools/` 创建新的工具类
+2. 在 `mcp_server/server.py` 注册工具
+3. 更新 `mcp_config.json` 配置
+
+详见 [架构文档](docs/ARCHITECTURE.md#61-添加新的-mcp-工具)
+
+### 添加新的 Skill
+
+1. 创建继承自 `BaseSkill` 的新类
+2. 实现 `execute(**kwargs)` 方法
+3. 在主程序中注册 Skill
+4. 添加到工作流
+
+详见 [架构文档](docs/ARCHITECTURE.md#62-添加新的-skill)
 
 ## 🔧 自定义 Prompt
 
-项目中的三个 Prompt 模板可以根据需要自定义：
+项目中的 Prompt 模板可以根据需要自定义：
 
 1. **`prompts/generate_test_points.md`**  
    控制如何从需求中提取测试点
 
 2. **`prompts/generate_test_cases.md`**  
    控制测试用例的生成格式和质量
-
-3. **`prompts/export_to_excel.md`**  
-   控制 Excel 导出的逻辑
 
 修改这些文件可以调整生成结果的风格和结构。
 
@@ -192,23 +380,55 @@ Agent 会自动：
 运行成功后，控制台会显示类似以下内容：
 
 ```
+============================================================
+🚀 基于 MCP 和 Skills 架构的智能测试用例生成器
+============================================================
+
+📡 初始化 MCP 客户端...
+✅ MCP 客户端初始化成功
+
+🎯 创建 Skill Manager...
+
+📦 注册 Skills...
+✅ 注册 Skill: test_point_extraction
+✅ 注册 Skill: test_case_generation
+✅ 注册 Skill: excel_export
+
+📝 需求描述:
+用户可以使用邮箱和密码登录系统，成功后跳转到首页。若邮箱或密码错误，应显示错误信息。
+
+🚀 开始执行工作流，共 3 个步骤
+工作流: test_point_extraction -> test_case_generation -> excel_export
+
+[1/3] 执行 Skill: test_point_extraction
+📋 提取的测试点:
 - 使用正确的邮箱和密码登录系统，验证是否成功跳转到首页
 - 使用错误的邮箱登录系统，验证是否显示错误信息
 ...
+✅ test_point_extraction 执行成功
 
-📄 生成的测试用例 JSON：
-[
-  {
-    "title": "邮箱密码正确时登录成功",
-    ...
-  }
-]
+[2/3] 执行 Skill: test_case_generation
+📄 生成的测试用例 JSON:
+[{"title": "邮箱密码正确时登录成功", ...}]
+✅ test_case_generation 执行成功
 
-> Entering new AgentExecutor chain...
-Action: Python_REPL
-...
-Final Answer: The test cases have been successfully written to an Excel file named test_cases.xlsx.
-> Finished chain.
+[3/3] 执行 Skill: excel_export
+✅ 成功导出 5 条测试用例到 test_cases.xlsx
+📊 文件路径: test_cases.xlsx
+✅ excel_export 执行成功
+
+🎉 工作流执行完成！
+
+============================================================
+✅ 工作流执行成功！
+============================================================
+
+📊 结果摘要:
+  ✅ test_point_extraction: 成功
+  ✅ test_case_generation: 成功
+  ✅ excel_export: 成功
+
+📁 生成的 Excel 文件: test_cases.xlsx
 ```
 
 生成的 `test_cases.xlsx` 文件可直接用于：
@@ -235,11 +455,12 @@ Final Answer: The test cases have been successfully written to an Excel file nam
 
 ## 🔍 技术栈
 
-- **LangChain**: 用于构建 LLM 应用和 Agent
+- **MCP (Model Context Protocol)**: 标准化的工具调用协议
+- **Skills 架构**: 模块化的业务逻辑封装
+- **LangChain**: 用于构建 LLM 应用和 Chain
 - **OpenAI GPT-3.5**: 核心语言模型
-- **Pandas + OpenPyXL**: Excel 文件生成
-- **Python REPL Tool**: Agent 自动执行 Python 代码
-- **ReAct Agent**: 推理 + 行动的 Agent 架构
+- **Pandas + OpenPyXL**: Excel 文件生成和格式化
+- **Python 异步编程**: MCP 服务器的异步实现
 
 ## 🎓 适用场景
 

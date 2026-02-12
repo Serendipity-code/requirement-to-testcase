@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "testcase-tools": {
+      "command": "python",
+      "args": ["mcp_server/server.py"],
+      "tools": [
+        "file_operations",
+        "excel_exporter",
+        "testcase_validator"
+      ]
+    }
+  }
+}
